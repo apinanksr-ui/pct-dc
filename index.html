@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>PCT-DC · ทะเบียนเอกสาร</title>
+
+<!-- ไฟล์ชุดนี้อยู่บน GitHub ซึ่งเป็นพื้นที่สาธารณะ
+     จึงต้องไม่มีลิงก์ระบบและไม่มีรหัสผู้บริหารฝังอยู่ในไฟล์เลยแม้แต่ตัวเดียว
+     ลิงก์ทั้งสองถูกกรอกตอนติดตั้งครั้งแรก แล้วเก็บไว้ในเครื่องเครื่องนั้นเท่านั้น -->
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#FB6C1B">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PCT-DC">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E5E7E2; --surface:#FAFAF8; --ink:#15181A; --ink-2:#5C6369; --ink-3:#8B9198;
+  --rule:#C7CBC4; --rule-hard:#2A2E30; --brand:#FB6C1B; --due:#A32B18;
+  --font-th:"IBM Plex Sans Thai","Noto Sans Thai",system-ui,-apple-system,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --bar:52px;
+}
+*{box-sizing:border-box}
+/* .bar ตั้ง display:flex ไว้ ซึ่งชนะ hidden ของเบราว์เซอร์ ต้องบังคับทับอีกชั้น
+   ไม่งั้นแถบมุมมองจะโผล่มาคาหน้าตั้งค่าตั้งแต่ยังไม่ได้ตั้งค่า */
+[hidden]{display:none !important}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-th);
+     font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+
+/* ───── แถบสลับมุมมอง ───── */
+.bar{position:fixed;top:0;left:0;right:0;height:calc(var(--bar) + env(safe-area-inset-top));
+     padding-top:env(safe-area-inset-top);background:var(--ink);display:flex;align-items:stretch;z-index:10}
+.bar .mark{display:flex;align-items:center;gap:7px;padding:0 12px 0 14px;flex:0 0 auto}
+.bar .mark img{width:22px;height:22px;display:block}
+.bar .mark b{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;color:#fff;font-weight:600}
+.tabs{display:flex;flex:1 1 auto;min-width:0}
+.tabs button{flex:1 1 0;min-width:0;background:transparent;border:none;border-left:1px solid #3A3F42;
+             color:#B9BEC2;font-family:inherit;font-size:12.5px;cursor:pointer;padding:0 4px;
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs button[aria-pressed="true"]{background:var(--brand);color:#fff;font-weight:600}
+.gear{flex:0 0 auto;background:transparent;border:none;border-left:1px solid #3A3F42;color:#8B9198;
+      cursor:pointer;font-size:16px;width:42px}
+
+/* ───── กรอบแสดงระบบ ───── */
+.stage{position:fixed;top:calc(var(--bar) + env(safe-area-inset-top));left:0;right:0;bottom:0;background:var(--paper)}
+.stage iframe{width:100%;height:100%;border:none;display:block}
+.stuck{position:absolute;inset:0;background:var(--paper);overflow:auto;padding:28px 16px}
+.stuck[hidden]{display:none}
+
+/* ───── หน้าตั้งค่า / หน้าแจ้งปัญหา ───── */
+.sheet{position:fixed;inset:0;background:var(--paper);overflow:auto;z-index:20;
+       padding:calc(24px + env(safe-area-inset-top)) 16px 32px}
+.sheet[hidden]{display:none}
+.box{max-width:560px;margin:0 auto;border:2px solid var(--rule-hard);background:var(--surface);padding:20px}
+.box .logo{width:72px;height:72px;display:block;margin-bottom:14px}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--ink-2);font-size:13px;margin:0 0 18px}
+label{display:block;font-size:12.5px;color:var(--ink-2);margin:14px 0 5px}
+label b{display:block;color:var(--ink);font-size:13.5px;font-weight:600}
+input{width:100%;padding:10px 11px;border:1px solid var(--rule-hard);background:#fff;
+      font-family:var(--font-mono);font-size:12px;color:var(--ink)}
+input:focus{outline:2px solid var(--brand);outline-offset:-1px}
+.hint{font-size:11.5px;color:var(--ink-3);margin-top:4px;line-height:1.5}
+.err{color:var(--due);font-size:12.5px;margin-top:10px;min-height:1.2em}
+.go{margin-top:20px;width:100%;padding:13px;border:none;background:var(--brand);color:#fff;
+    font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
+.go:hover{background:#E05F12}
+.minor{margin-top:12px;width:100%;padding:10px;border:1px solid var(--rule);background:transparent;
+       font-family:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer}
+.note{margin:18px auto 0;max-width:560px;font-size:11.5px;color:var(--ink-2);
+      border-left:3px solid var(--rule-hard);padding-left:11px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="bar" id="bar" hidden>
+  <div class="mark"><img src="icon-192.png" alt=""><b>PCT-DC</b></div>
+  <div class="tabs" id="tabs"></div>
+  <button class="gear" id="open" title="เปิดเต็มหน้าจอ" aria-label="เปิดเต็มหน้าจอ">↗</button>
+  <button class="gear" id="gear" title="ตั้งค่า" aria-label="ตั้งค่า">⚙</button>
+</div>
+
+<div class="stage" id="stage" hidden>
+  <iframe id="frame" title="ทะเบียนเอกสาร" allow="clipboard-write"
+          referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <div class="stuck" id="stuck" hidden>
+    <div class="box">
+      <h1>แสดงในแอปไม่ได้</h1>
+      <p class="lead">Google ไม่ยอมให้หน้าระบบแสดงอยู่ในแอปนี้
+        ใช้ปุ่มด้านล่างเปิดเต็มหน้าจอแทน — ข้อมูลเหมือนกันทุกอย่าง</p>
+      <button class="go" id="stuckGo">เปิดเต็มหน้าจอ</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="setup">
+  <div class="box">
+    <img class="logo" src="icon-192.png" alt="">
+    <h1>ตั้งค่าครั้งแรก</h1>
+    <p class="lead">ทำครั้งเดียวต่อเครื่อง โดยธุรการหรือผู้ดูแลระบบ<br>
+      ผู้บริหารไม่ต้องเห็นหน้านี้</p>
+
+    <label><b>ลิงก์ผู้บริหาร — เอกสารในไซท์งาน</b>
+      วางทั้งเส้น รวมส่วนที่ลงท้ายด้วย ?k=</label>
+    <input id="inSite" inputmode="url" spellcheck="false" placeholder="https://script.google.com/macros/s/..../exec?k=...">
+
+    <label><b>ลิงก์ผู้บริหาร — เอกสารส่งออกนอกไซท์งาน</b>
+      ถ้ายังไม่มี เว้นว่างไว้ได้</label>
+    <input id="inOut" inputmode="url" spellcheck="false" placeholder="https://script.google.com/macros/s/..../exec?k=...">
+
+    <div class="err" id="err"></div>
+    <button class="go" id="save">บันทึกและเข้าใช้งาน</button>
+    <button class="minor" id="cancel" hidden>ยกเลิก กลับหน้าเดิม</button>
+  </div>
+  <p class="note">
+    ลิงก์ที่กรอกจะถูกเก็บไว้ใน<b>เครื่องนี้เครื่องเดียว</b> ไม่ได้ถูกส่งไปเก็บที่ไหนทั้งสิ้น
+    และไม่ได้อยู่ในตัวแอป — ใครเปิดที่อยู่ของแอปนี้โดยไม่มีลิงก์ จะเจอแค่หน้านี้ ไม่เห็นข้อมูลใด ๆ<br>
+    ถ้าล้างข้อมูลเบราว์เซอร์ ต้องกลับมากรอกใหม่ครั้งเดียว
+  </p>
+</div>
+
+<script>
+/* ═══════════ ค่าที่เก็บไว้ในเครื่อง ═══════════
+   เก็บเฉพาะลิงก์สองเส้น ไม่มีข้อมูลเอกสารถูกเก็บลงเครื่องเลย
+   เจตนา — ผู้บริหารต้องเห็นตัวเลขสดเสมอ การเห็นตัวเลขเก่าโดยไม่รู้ตัว
+   อันตรายกว่าการเปิดไม่ได้ ในงานที่มีข้อพิพาทเรื่องความล่าช้า */
+var คีย์เก็บ = 'pctdc.links.v1';
+var ลิงก์ = { site:'', out:'' };
+
+function อ่านค่า(){
+  try {
+    var s = localStorage.getItem(คีย์เก็บ);
+    if(s){ var o = JSON.parse(s); ลิงก์.site = o.site || ''; ลิงก์.out = o.out || ''; }
+  } catch(e){ /* โหมดส่วนตัวของเบราว์เซอร์อ่านไม่ได้ ถือว่ายังไม่ได้ตั้งค่า */ }
+}
+function เขียนค่า(){
+  try { localStorage.setItem(คีย์เก็บ, JSON.stringify(ลิงก์)); return true }
+  catch(e){ return false }
+}
+
+function ตรวจลิงก์(u){
+  u = String(u || '').trim();
+  if(!u) return '';
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(u)) return null;
+  if(u.indexOf('/a/macros/') >= 0) return null;   /* ลิงก์แบบจำกัดโดเมน จะบังคับให้ล็อกอิน */
+  if(!/[?&]k=[^&]+/.test(u)) return null;         /* ไม่มีรหัส = เปิดไม่ได้อยู่ดี */
+  return u;
+}
+
+/* ═══════════ มุมมอง ═══════════ */
+var มุมมอง = [];
+function สร้างมุมมอง(){
+  มุมมอง = [];
+  if(ลิงก์.site){
+    มุมมอง.push({ id:'hub',  ชื่อ:'ภาพรวม',  url: ลิงก์.site });
+    มุมมอง.push({ id:'site', ชื่อ:'ในไซท์',  url: ลิงก์.site + '&p=site' });
+  }
+  if(ลิงก์.out) มุมมอง.push({ id:'out', ชื่อ:'นอกไซท์', url: ลิงก์.out });
+}
+
+var ปัจจุบัน = 0;
+function วาดแถบ(){
+  var t = document.getElementById('tabs');
+  t.innerHTML = มุมมอง.map(function(v,i){
+    return '<button data-i="'+i+'" aria-pressed="'+(i===ปัจจุบัน)+'">'+v.ชื่อ+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(t.querySelectorAll('button'), function(b){
+    b.onclick = function(){ เปิด(Number(b.dataset.i)) };
+  });
+}
+/* กันเหนียว — ถ้าวันหนึ่ง Google เปลี่ยนใจไม่ยอมให้หน้าระบบแสดงอยู่ในหน้าอื่น
+   แอปต้องไม่กลายเป็นจอว่างเปล่า แต่ต้องบอกผู้ใช้และให้ทางออกทันที
+   ปุ่ม ↗ บนแถบเปิดเต็มหน้าจอได้ตลอดเวลาอยู่แล้ว ไม่ต้องรอให้พัง */
+var นาฬิกากันค้าง = null;
+function เปิด(i){
+  ปัจจุบัน = i;
+  var f = document.getElementById('frame');
+  document.getElementById('stuck').hidden = true;
+  f.dataset.ok = '';
+  f.src = มุมมอง[i].url;
+  clearTimeout(นาฬิกากันค้าง);
+  นาฬิกากันค้าง = setTimeout(function(){
+    if(!f.dataset.ok) document.getElementById('stuck').hidden = false;
+  }, 8000);
+  วาดแถบ();
+}
+document.getElementById('frame').addEventListener('load', function(){
+  this.dataset.ok = '1';
+  document.getElementById('stuck').hidden = true;
+});
+function เปิดเต็มจอ(){ if(มุมมอง[ปัจจุบัน]) window.open(มุมมอง[ปัจจุบัน].url, '_blank', 'noopener') }
+document.getElementById('open').onclick    = เปิดเต็มจอ;
+document.getElementById('stuckGo').onclick = เปิดเต็มจอ;
+
+function เข้าระบบ(){
+  สร้างมุมมอง();
+  if(!มุมมอง.length) return แสดงตั้งค่า();
+  document.getElementById('setup').hidden = true;
+  document.getElementById('bar').hidden   = false;
+  document.getElementById('stage').hidden = false;
+  เปิด(0);
+}
+function แสดงตั้งค่า(){
+  document.getElementById('inSite').value = ลิงก์.site;
+  document.getElementById('inOut').value  = ลิงก์.out;
+  document.getElementById('cancel').hidden = !ลิงก์.site;
+  document.getElementById('setup').hidden = false;
+  document.getElementById('bar').hidden   = true;
+  document.getElementById('stage').hidden = true;
+}
+
+document.getElementById('save').onclick = function(){
+  var s = ตรวจลิงก์(document.getElementById('inSite').value);
+  var o = ตรวจลิงก์(document.getElementById('inOut').value);
+  var e = document.getElementById('err');
+  if(s === null || !s){
+    e.textContent = 'ลิงก์เอกสารในไซท์ยังไม่ถูกต้อง — ต้องขึ้นต้นด้วย https://script.google.com/macros/s/ '
+                  + 'ลงท้ายด้วย /exec และมี ?k= ต่อท้าย (ห้ามเป็นลิงก์ที่มี /a/ชื่อโดเมน/ เพราะจะบังคับให้ล็อกอิน)';
+    return;
+  }
+  if(o === null){
+    e.textContent = 'ลิงก์เอกสารนอกไซท์ไม่ถูกต้อง — ถ้ายังไม่มี ให้ลบออกให้ว่างแล้วบันทึกใหม่';
+    return;
+  }
+  ลิงก์.site = s; ลิงก์.out = o || '';
+  if(!เขียนค่า()){
+    e.textContent = 'เบราว์เซอร์นี้ไม่ยอมให้บันทึกค่า (อาจเปิดอยู่ในโหมดส่วนตัว) '
+                  + 'ให้ปิดโหมดส่วนตัวแล้วลองใหม่';
+    return;
+  }
+  e.textContent = '';
+  เข้าระบบ();
+};
+document.getElementById('cancel').onclick = function(){ document.getElementById('err').textContent=''; เข้าระบบ() };
+document.getElementById('gear').onclick   = แสดงตั้งค่า;
+
+/* เปิดครั้งแรกจากลิงก์ที่มี ?setup ต่อท้าย = บังคับให้เข้าหน้าตั้งค่า */
+อ่านค่า();
+if(location.search.indexOf('setup') >= 0) แสดงตั้งค่า();
+else if(ลิงก์.site) เข้าระบบ();
+else แสดงตั้งค่า();
+
+/* ═══════════ ตัวช่วยให้ติดตั้งเป็นแอปได้ ═══════════
+   แคชเฉพาะเปลือกกับไอคอน ไม่แคชข้อมูลเอกสารแม้แต่นิดเดียว */
+if('serviceWorker' in navigator)
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}) });
+</script>
+</body>
+</html>
