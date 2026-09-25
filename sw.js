@@ -2,7 +2,7 @@
    แคชเฉพาะไฟล์ของเปลือกกับไอคอนเท่านั้น
    ข้อมูลเอกสารอยู่คนละต้นทาง (script.google.com) และไม่เคยถูกแคชที่นี่
    ตั้งใจให้เป็นแบบนี้ — ผู้บริหารต้องเห็นตัวเลขสดเสมอ ไม่มีทางเห็นของเก่าโดยไม่รู้ตัว */
-const ถัง = 'pctdc-shell-v1';
+const ถัง = 'pctdc-shell-v2';
 const ของ = ['./','./index.html','./manifest.webmanifest',
              './icon-192.png','./icon-512.png','./icon-maskable-512.png',
              './apple-touch-icon.png','./favicon-32.png','./favicon.ico'];

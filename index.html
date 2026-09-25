@@ -50,8 +50,18 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-th
       cursor:pointer;font-size:16px;width:42px}
 
 /* ───── กรอบแสดงระบบ ───── */
-.stage{position:fixed;top:calc(var(--bar) + env(safe-area-inset-top));left:0;right:0;bottom:0;background:var(--paper)}
-.stage iframe{width:100%;height:100%;border:none;display:block}
+.stage{position:fixed;top:calc(var(--bar) + env(safe-area-inset-top));left:0;right:0;bottom:0;
+       padding-bottom:env(safe-area-inset-bottom);background:var(--paper)}
+/* แต่ละมุมมองมีกรอบของตัวเองและค้างอยู่ตลอด สลับด้วยการซ่อน/แสดง
+   ไม่ใช่การเปลี่ยน src ของกรอบเดียว — เพราะ Apps Script โหลดครั้งละหลายวินาที
+   ถ้าเปลี่ยน src ทุกครั้งที่กดแถบ ผู้บริหารจะต้องรอใหม่ทุกครั้ง
+   แบบนี้รอแค่ครั้งแรกของแต่ละมุมมอง หลังจากนั้นสลับทันที */
+.frames{position:absolute;inset:0}
+.frames iframe{position:absolute;inset:0;width:100%;height:100%;border:none;display:block}
+.frames iframe[hidden]{display:none}
+.spin{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      color:var(--ink-3);font-size:13px;pointer-events:none}
+.spin[hidden]{display:none}
 .stuck{position:absolute;inset:0;background:var(--paper);overflow:auto;padding:28px 16px}
 .stuck[hidden]{display:none}
 
@@ -89,8 +99,7 @@ input:focus{outline:2px solid var(--brand);outline-offset:-1px}
 </div>
 
 <div class="stage" id="stage" hidden>
-  <iframe id="frame" title="ทะเบียนเอกสาร" allow="clipboard-write"
-          referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <div class="frames" id="frames"></div>
   <div class="stuck" id="stuck" hidden>
     <div class="box">
       <h1>แสดงในแอปไม่ได้</h1>
@@ -167,35 +176,119 @@ function สร้างมุมมอง(){
 }
 
 var ปัจจุบัน = 0;
+var กรอบ = {};          /* id ของมุมมอง -> element ของกรอบ */
+var รอ   = {};          /* id ของมุมมอง -> ข้อความกำลังโหลด */
+
 function วาดแถบ(){
   var t = document.getElementById('tabs');
   t.innerHTML = มุมมอง.map(function(v,i){
     return '<button data-i="'+i+'" aria-pressed="'+(i===ปัจจุบัน)+'">'+v.ชื่อ+'</button>';
   }).join('');
   Array.prototype.forEach.call(t.querySelectorAll('button'), function(b){
-    b.onclick = function(){ เปิด(Number(b.dataset.i)) };
+    b.onclick = function(){
+      var i = Number(b.dataset.i);
+      if(i === ปัจจุบัน) โหลดใหม่(i);   /* กดแถบที่เปิดอยู่ซ้ำ = ดึงข้อมูลใหม่ */
+      else เปิด(i);
+    };
   });
 }
-/* กันเหนียว — ถ้าวันหนึ่ง Google เปลี่ยนใจไม่ยอมให้หน้าระบบแสดงอยู่ในหน้าอื่น
-   แอปต้องไม่กลายเป็นจอว่างเปล่า แต่ต้องบอกผู้ใช้และให้ทางออกทันที
-   ปุ่ม ↗ บนแถบเปิดเต็มหน้าจอได้ตลอดเวลาอยู่แล้ว ไม่ต้องรอให้พัง */
-var นาฬิกากันค้าง = null;
-function เปิด(i){
-  ปัจจุบัน = i;
-  var f = document.getElementById('frame');
-  document.getElementById('stuck').hidden = true;
-  f.dataset.ok = '';
-  f.src = มุมมอง[i].url;
-  clearTimeout(นาฬิกากันค้าง);
-  นาฬิกากันค้าง = setTimeout(function(){
-    if(!f.dataset.ok) document.getElementById('stuck').hidden = false;
-  }, 8000);
-  วาดแถบ();
+
+/* สร้างกรอบของมุมมองนั้นเมื่อถูกเปิดครั้งแรก แล้วเก็บไว้ตลอด
+   กันเหนียวไว้ด้วย — ถ้ากรอบไม่ขึ้นภายใน 20 วินาที ขึ้นข้อความพร้อมปุ่มเปิดเต็มจอ */
+function สร้างกรอบ(v){
+  var ช่อง = document.getElementById('frames');
+
+  var ป้าย = document.createElement('div');
+  ป้าย.className = 'spin';
+  ป้าย.textContent = 'กำลังเปิด ' + v.ชื่อ + ' …';
+  ช่อง.appendChild(ป้าย);
+  รอ[v.id] = ป้าย;
+
+  var f = document.createElement('iframe');
+  f.title = v.ชื่อ;
+  f.setAttribute('allow','clipboard-write');
+  f.setAttribute('referrerpolicy','no-referrer-when-downgrade');
+  f.addEventListener('load', function(){
+    f.dataset.ok = '1';
+    f.dataset.at = String(Date.now());   /* ใช้ดูว่าข้อมูลในกรอบนี้เก่าไปหรือยัง */
+    ป้าย.hidden = true;
+    document.getElementById('stuck').hidden = true;
+  });
+  f.src = v.url;
+  ช่อง.appendChild(f);
+  กรอบ[v.id] = f;
+
+  setTimeout(function(){
+    if(!f.dataset.ok && มุมมอง[ปัจจุบัน] && มุมมอง[ปัจจุบัน].id === v.id){
+      ป้าย.hidden = true;
+      document.getElementById('stuck').hidden = false;
+    }
+  }, 20000);
+  return f;
 }
-document.getElementById('frame').addEventListener('load', function(){
-  this.dataset.ok = '1';
+
+function เปิด(i, ไม่จำ){
+  ปัจจุบัน = i;
+  var v = มุมมอง[i];
   document.getElementById('stuck').hidden = true;
+  if(!กรอบ[v.id]) สร้างกรอบ(v);
+  มุมมอง.forEach(function(x){
+    if(กรอบ[x.id]) กรอบ[x.id].hidden = (x.id !== v.id);
+    if(รอ[x.id] && x.id !== v.id) รอ[x.id].hidden = true;
+  });
+  if(รอ[v.id] && !กรอบ[v.id].dataset.ok) รอ[v.id].hidden = false;
+  วาดแถบ();
+  /* บันทึกลงประวัติของเบราว์เซอร์ เพื่อให้ปุ่มย้อนกลับของมือถือ
+     พากลับมุมมองก่อนหน้า แทนที่จะปิดแอปทิ้งทันที ซึ่งเป็นพฤติกรรมตั้งต้น
+     และเป็นสิ่งที่ผู้บริหารจะกดโดยสัญชาตญาณ                                */
+  if(!ไม่จำ) try { history.pushState({ มุม:i }, '') } catch(e){}
+  สดพอไหม();
+}
+
+window.addEventListener('popstate', function(e){
+  var i = (e.state && typeof e.state.มุม === 'number') ? e.state.มุม : 0;
+  if(มุมมอง[i]) เปิด(i, true);
 });
+
+/* ───── กันข้อมูลค้างเก่า ─────
+   พอเปลี่ยนมาใช้กรอบค้างไว้ ข้อเสียที่ตามมาคือถ้าเปิดแอปทิ้งไว้ทั้งวัน
+   ตัวเลขที่เห็นจะเป็นของตอนเช้าโดยที่ผู้บริหารไม่รู้ตัว
+   ซึ่งอันตรายกว่าการเปิดช้า จึงดึงใหม่ให้เองเมื่อกลับมาเปิดแอปและข้อมูลเกินสิบนาที
+   สิบนาทีเท่ากับรอบแคชของฝั่งเซิร์ฟเวอร์พอดี ดึงถี่กว่านี้ก็ได้ข้อมูลชุดเดิม */
+var อายุสูงสุด = 10 * 60 * 1000;
+function สดพอไหม(){
+  var v = มุมมอง[ปัจจุบัน]; if(!v) return;
+  var f = กรอบ[v.id]; if(!f || !f.dataset.ok) return;
+  if(Date.now() - Number(f.dataset.at || 0) > อายุสูงสุด) โหลดใหม่(ปัจจุบัน);
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible') สดพอไหม();
+});
+window.addEventListener('focus', สดพอไหม);
+
+function โหลดใหม่(i){
+  var v = มุมมอง[i], f = กรอบ[v.id];
+  if(!f) return เปิด(i);
+  f.dataset.ok = '';
+  if(รอ[v.id]){ รอ[v.id].textContent = 'กำลังดึงข้อมูลใหม่ …'; รอ[v.id].hidden = false; }
+  f.src = v.url;
+}
+
+/* หน้ารวมส่งสัญญาณมาบอกว่าผู้บริหารกดกล่องไหน แล้วแอปสลับมุมมองให้เอง
+   ทำแบบนี้แทนการให้ลิงก์ในหน้ารวมพาไปเอง เพราะกรอบข้ามโดเมนสั่งให้กรอบแม่
+   เปลี่ยนหน้าไม่ได้ กดแล้วจะเงียบ และถึงสั่งได้ก็ต้องรอโหลดใหม่ทุกครั้ง */
+window.addEventListener('message', function(e){
+  if(!/^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
+  var d = e.data;
+  if(!d || d.pctdc !== 'go' || typeof d.view !== 'string') return;
+  for(var i = 0; i < มุมมอง.length; i++)
+    if(มุมมอง[i].id === d.view) return เปิด(i);
+  /* ไม่มีมุมมองตรงกัน — เกิดได้ถ้าหน้ารวมเชื่อมระบบเอกสารส่งออกไว้
+     แต่ตอนตั้งค่าแอปไม่ได้ใส่ลิงก์ของระบบนั้น · เปิดเต็มจอให้แทน
+     ดีกว่าปล่อยให้กดแล้วเงียบ ซึ่งเป็นอาการที่เราเพิ่งแก้ไป          */
+  if(ตรวจลิงก์(d.href)) window.open(d.href, '_blank', 'noopener');
+});
+
 function เปิดเต็มจอ(){ if(มุมมอง[ปัจจุบัน]) window.open(มุมมอง[ปัจจุบัน].url, '_blank', 'noopener') }
 document.getElementById('open').onclick    = เปิดเต็มจอ;
 document.getElementById('stuckGo').onclick = เปิดเต็มจอ;
@@ -203,10 +296,17 @@ document.getElementById('stuckGo').onclick = เปิดเต็มจอ;
 function เข้าระบบ(){
   สร้างมุมมอง();
   if(!มุมมอง.length) return แสดงตั้งค่า();
+  /* ถ้าเพิ่งเปลี่ยนลิงก์ ต้องทิ้งกรอบเก่าทั้งหมด ไม่งั้นจะยังเห็นโครงการเดิม */
+  var ช่อง = document.getElementById('frames');
+  if(ช่อง.dataset.url !== ลิงก์.site + '|' + ลิงก์.out){
+    ช่อง.innerHTML = ''; กรอบ = {}; รอ = {};
+    ช่อง.dataset.url = ลิงก์.site + '|' + ลิงก์.out;
+  }
   document.getElementById('setup').hidden = true;
   document.getElementById('bar').hidden   = false;
   document.getElementById('stage').hidden = false;
-  เปิด(0);
+  try { history.replaceState({ มุม:0 }, '') } catch(e){}
+  เปิด(0, true);
 }
 function แสดงตั้งค่า(){
   document.getElementById('inSite').value = ลิงก์.site;
