@@ -211,6 +211,8 @@ function สร้างกรอบ(v){
   f.addEventListener('load', function(){
     f.dataset.ok = '1';
     f.dataset.at = String(Date.now());   /* ใช้ดูว่าข้อมูลในกรอบนี้เก่าไปหรือยัง */
+    /* ทักไปก่อนเลย เผื่อหน้ารวมถาม ping มาตั้งแต่ก่อนที่กรอบจะโหลดเสร็จ */
+    try { if(f.contentWindow) f.contentWindow.postMessage({ pctdc:'hello' }, '*') } catch(err){}
     ป้าย.hidden = true;
     document.getElementById('stuck').hidden = true;
   });
@@ -280,7 +282,15 @@ function โหลดใหม่(i){
 window.addEventListener('message', function(e){
   if(!/^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
   var d = e.data;
-  if(!d || d.pctdc !== 'go' || typeof d.view !== 'string') return;
+  if(!d || typeof d.pctdc !== 'string') return;
+  /* หน้ารวมถามว่า "มีแอปฟังอยู่ไหม" ต้องตอบกลับไปให้รู้ว่ามี
+     หน้ารวมจะได้ไม่ต้องเดาจากจำนวนชั้นกรอบ ซึ่งเดาผิดเสมอ
+     ถ้าลบท่อนนี้ทิ้ง กล่องในหน้ารวมจะกลับไปพาผู้บริหารออกจากแอปทั้งจอ */
+  if(d.pctdc === 'ping'){
+    try { if(e.source) e.source.postMessage({ pctdc:'pong' }, e.origin) } catch(err){}
+    return;
+  }
+  if(d.pctdc !== 'go' || typeof d.view !== 'string') return;
   for(var i = 0; i < มุมมอง.length; i++)
     if(มุมมอง[i].id === d.view) return เปิด(i);
   /* ไม่มีมุมมองตรงกัน — เกิดได้ถ้าหน้ารวมเชื่อมระบบเอกสารส่งออกไว้
